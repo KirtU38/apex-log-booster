@@ -1,0 +1,62 @@
+{
+	"name": "log-booster",
+	"displayName": "Log Booster",
+	"description": "",
+	"version": "0.0.1",
+	"engines": {
+		"vscode": "^1.62.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onCommand:log-booster.analyzeOrderOfExecution",
+		"onCommand:log-booster.analyzeSOQL"
+	],
+	"main": "./out/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "log-booster.analyzeOrderOfExecution",
+				"title": "Log: Order of Execution"
+			},
+            {
+				"command": "log-booster.analyzeSOQL",
+				"title": "Log: SOQL Analyzer"
+			}
+		],
+        "menus": {
+            "editor/context": [
+                {
+                    "when": "resourceLangId == apexlog",
+                    "command": "log-booster.analyzeOrderOfExecution"
+                },
+                {
+                    "when": "resourceLangId == apexlog",
+                    "command": "log-booster.analyzeSOQL"
+                }
+            ]
+        }
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./",
+		"pretest": "npm run compile && npm run lint",
+		"lint": "eslint src --ext ts",
+		"test": "node ./out/test/runTest.js"
+	},
+	"devDependencies": {
+		"@types/vscode": "^1.62.0",
+		"@types/glob": "^7.1.4",
+		"@types/mocha": "^9.0.0",
+		"@types/node": "14.x",
+		"@typescript-eslint/eslint-plugin": "^5.1.0",
+		"@typescript-eslint/parser": "^5.1.0",
+		"eslint": "^8.1.0",
+		"glob": "^7.1.7",
+		"mocha": "^9.1.3",
+		"typescript": "^4.4.4",
+		"@vscode/test-electron": "^1.6.2"
+	}
+}
