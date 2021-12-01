@@ -3,6 +3,11 @@ import { LogType } from './classes/helper';
 import { LOG_OBJECTS } from './classes/helper';
 
 const filePostfix = 'analyzedSOQL';
+type Method = {
+    name: string, 
+    numberOfQueries: number, 
+    triggers: Map<string, number>
+};
 const ignorableClasses = new Set([
     "System",
     "AqTriggerHandler",
@@ -49,13 +54,13 @@ export function analyzeSOQL() : void {
             let line = doc.lineAt(i);
             let formatted = formatLine(line.text);
             if(formatted) {
-                allMethodsWithSOQL.push(formatted + '   line:' + i);
+                allMethodsWithSOQL.push(formatted + ' :' + i);
             }
         }
         
         // Второй прогон
-        let mapOfmethodNameToObject = {};
-        let lastMethod = {};
+        let mapOfMethodNameToObject = new Map<string, Method>();
+        let lastMethod: Method | undefined;
         let lastTrigger = '';
         for (const line of allMethodsWithSOQL) {
             // Methods
@@ -65,10 +70,10 @@ export function analyzeSOQL() : void {
                 }
                 finalFileText += line + '\n';
                 if (line.startsWith('ENTER')) {
-                    lastMethod = mapOfmethodNameToObject[line];
-                    if (lastMethod == null) {
-                        mapOfmethodNameToObject[line] = {name: line, numberOfQueries: 0, triggers: {}};
-                        lastMethod = mapOfmethodNameToObject[line];
+                    lastMethod = mapOfMethodNameToObject.get(line);
+                    if (!lastMethod) {
+                        mapOfMethodNameToObject.set(line, {name: line, numberOfQueries: 0, triggers: new Map<string, number>()});
+                        lastMethod = mapOfMethodNameToObject.get(line);
                     }
                 }
             }
@@ -76,17 +81,19 @@ export function analyzeSOQL() : void {
             // SOQL
             if (line.startsWith('SOQL')) {
                 finalFileText += line + ' (' + lastTrigger + ')\n';
-                if (lastMethod == null) {
+                if (!lastMethod) {
                     continue;
                 }
-                if (mapOfmethodNameToObject[lastMethod.name] != null) {
-                    let currentMethod = mapOfmethodNameToObject[lastMethod.name];
+                let currentMethod = mapOfMethodNameToObject.get(lastMethod.name);
+                if (currentMethod) {
                     currentMethod.numberOfQueries++;
-                    let currentSOQLCountForTrigger = currentMethod.triggers[lastTrigger];
-                    if (currentSOQLCountForTrigger == null) {
-                        currentMethod.triggers[lastTrigger] = 1;
+                    let currentSOQLCountForTrigger = currentMethod.triggers.get(lastTrigger);
+                    console.log(JSON.stringify(currentMethod.triggers) + ' EGOR');
+                    
+                    if (!currentSOQLCountForTrigger) {
+                        currentMethod.triggers.set(lastTrigger, 1);
                     } else {
-                        currentMethod.triggers[lastTrigger] = currentMethod.triggers[lastTrigger] + 1;
+                        currentMethod.triggers.set(lastTrigger, currentSOQLCountForTrigger + 1);
                     }
                 }
             }
@@ -94,7 +101,7 @@ export function analyzeSOQL() : void {
             // TRIGGERS
             if (line.startsWith('TRIGGER STARTED')) {
                 finalFileText += line + '\n';
-                lastTrigger = line.replace(/TRIGGER STARTED:\s+(.+)/i, '$1');
+                lastTrigger = line.replace(/TRIGGER STARTED:\s+(.+):\d+/i, '$1');
             } else if(line.startsWith('TRIGGER FINISHED')) {
                 finalFileText += line + '\n';
             }
@@ -107,17 +114,30 @@ export function analyzeSOQL() : void {
 
         // Method SOQL info
         finalFileText += '\nMethods SOQL usage info:' + '\n';
-        let listOfMethods = [];
-        for (const methodName in mapOfmethodNameToObject) {
-            if (mapOfmethodNameToObject[methodName].numberOfQueries > 0) {
-                listOfMethods.push(mapOfmethodNameToObject[methodName]);
+        let listOfMethods: Method[] = [];
+        for (const methodName of mapOfMethodNameToObject.keys()) {
+            let currentMethod = mapOfMethodNameToObject.get(methodName);
+            if(!currentMethod) {
+                continue;
+            }
+            if (currentMethod.numberOfQueries > 0) {
+                listOfMethods.push(currentMethod);
             }
         }
         listOfMethods.sort((a, b) => {
             return b.numberOfQueries - a.numberOfQueries;
         });
+        
         for (const method of listOfMethods) {
-            finalFileText += method.numberOfQueries + ' - ' + method.name.replace(/ENTER:\s+(.+)/i, '$1') + ' - ' + JSON.stringify(method.triggers) + '\n';
+            // Flatten method.triggers map
+            let triggersString: string = '(';
+            for(const t of method.triggers.keys()) {
+                triggersString += t + ': ' + method.triggers.get(t) + ', ';
+            }
+            triggersString = triggersString.substr(0, triggersString.length - 2);
+            triggersString += ')';
+            // Print
+            finalFileText += method.numberOfQueries + ' - ' + method.name.replace(/ENTER:\s+(.+)\s+:\d+/i, '$1') + ' - ' + triggersString + '\n';
         }
 
         // Insert in new document
