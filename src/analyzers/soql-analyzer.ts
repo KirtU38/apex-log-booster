@@ -8,6 +8,9 @@ type Method = {
     numberOfQueries: number, 
     triggers: Map<string, number>
 };
+type TextWrap = {
+    text: string
+};
 const ignorableClasses = new Set([
     "System",
     "AqTriggerHandler",
@@ -45,8 +48,8 @@ export function analyzeSOQL() : void {
     let newFileUri = vscode.Uri.parse(newFilePath);
     let wsEdit = new vscode.WorkspaceEdit();
     wsEdit.createFile(newFileUri, { overwrite: true, ignoreIfExists: false });
-    let finalFileText = '';
-    let allMethodsWithSOQL: string[] = [];
+    let finalFileText: TextWrap = {text: ''};
+    let filteredLines: string[] = [];
 
     vscode.workspace.openTextDocument(currentFileUri).then((doc) => {
         // Первый прогон выбрать и подписать только нужные лайны
@@ -54,21 +57,21 @@ export function analyzeSOQL() : void {
             let line = doc.lineAt(i);
             let formatted = formatLine(line.text);
             if(formatted) {
-                allMethodsWithSOQL.push(formatted + ' :' + i);
+                filteredLines.push(formatted);
             }
         }
         
         // Второй прогон
-        let mapOfMethodNameToObject = new Map<string, Method>();
+        let mapOfMethodNameToObject: Map<string, Method> = new Map<string, Method>();
         let lastMethod: Method | undefined;
         let lastTrigger = '';
-        for (const line of allMethodsWithSOQL) {
+        for (const line of filteredLines) {
             // Methods
             if (line.startsWith('ENTER') || line.startsWith('EXIT')) {
                 if (ignorableClasses.has(line.replace(/\w+:\s+(\w+)\..+/i, '$1'))) {
                     continue;
                 }
-                finalFileText += line + '\n';
+                finalFileText.text += line + '\n';
                 if (line.startsWith('ENTER')) {
                     lastMethod = mapOfMethodNameToObject.get(line);
                     if (!lastMethod) {
@@ -76,44 +79,48 @@ export function analyzeSOQL() : void {
                         lastMethod = mapOfMethodNameToObject.get(line);
                     }
                 }
+                continue;
             }
 
             // SOQL
             if (line.startsWith('SOQL')) {
-                finalFileText += line + ' (' + lastTrigger + ')\n';
+                finalFileText.text += line + ' (' + lastTrigger + ')\n';
                 if (!lastMethod) {
                     continue;
                 }
                 let currentMethod = mapOfMethodNameToObject.get(lastMethod.name);
                 if (currentMethod) {
                     currentMethod.numberOfQueries++;
-                    let currentSOQLCountForTrigger = currentMethod.triggers.get(lastTrigger);
-                    console.log(JSON.stringify(currentMethod.triggers) + ' EGOR');
+                    console.log(currentMethod);
                     
+                    let currentSOQLCountForTrigger = currentMethod.triggers.get(lastTrigger);
                     if (!currentSOQLCountForTrigger) {
                         currentMethod.triggers.set(lastTrigger, 1);
                     } else {
                         currentMethod.triggers.set(lastTrigger, currentSOQLCountForTrigger + 1);
                     }
                 }
+                continue;
             }
 
             // TRIGGERS
             if (line.startsWith('TRIGGER STARTED')) {
-                finalFileText += line + '\n';
-                lastTrigger = line.replace(/TRIGGER STARTED:\s+(.+):\d+/i, '$1');
+                finalFileText.text += line + '\n';
+                lastTrigger = line.replace(/TRIGGER STARTED:\s+(.+)/i, '$1');
+                continue;
             } else if(line.startsWith('TRIGGER FINISHED')) {
-                finalFileText += line + '\n';
+                finalFileText.text += line + '\n';
+                continue;
             }
 
             // Errors
             if (line.startsWith("ERROR")) {
-                finalFileText += line + '\n';
+                finalFileText.text += line + '\n';
             }
         }
 
         // Method SOQL info
-        finalFileText += '\nMethods SOQL usage info:' + '\n';
+        finalFileText.text += '\nMethods SOQL usage info:' + '\n';
         let listOfMethods: Method[] = [];
         for (const methodName of mapOfMethodNameToObject.keys()) {
             let currentMethod = mapOfMethodNameToObject.get(methodName);
@@ -137,11 +144,11 @@ export function analyzeSOQL() : void {
             triggersString = triggersString.substr(0, triggersString.length - 2);
             triggersString += ')';
             // Print
-            finalFileText += method.numberOfQueries + ' - ' + method.name.replace(/ENTER:\s+(.+)\s+:\d+/i, '$1') + ' - ' + triggersString + '\n';
+            finalFileText.text += method.numberOfQueries + ' - ' + method.name.replace(/ENTER:\s+(.+)/i, '$1') + ' - ' + triggersString + '\n';
         }
 
         // Insert in new document
-        wsEdit.insert(newFileUri, new vscode.Position(1, 1), finalFileText);
+        wsEdit.insert(newFileUri, new vscode.Position(1, 1), finalFileText.text);
         vscode.workspace.applyEdit(wsEdit).then(() => {
             vscode.workspace.openTextDocument(newFileUri);
             vscode.window.showInformationMessage('Log successfully analyzed');
