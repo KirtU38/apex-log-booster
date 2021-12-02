@@ -2,7 +2,7 @@
 	"name": "apex-log-booster",
 	"displayName": "Apex Log Booster",
 	"description": "",
-	"version": "0.0.4",
+	"version": "0.0.5",
     "publisher": "EgorDevProjects",
     "icon": "turbo.png",
 	"engines": {
@@ -31,11 +31,13 @@
             "editor/context": [
                 {
                     "when": "resourceLangId == apexlog",
-                    "command": "apex-log-booster.analyzeOrderOfExecution"
+                    "command": "apex-log-booster.analyzeOrderOfExecution",
+                    "group": "zLogBooster@1"
                 },
                 {
                     "when": "resourceLangId == apexlog",
-                    "command": "apex-log-booster.analyzeSOQL"
+                    "command": "apex-log-booster.analyzeSOQL",
+                    "group": "zLogBooster@2"
                 }
             ]
         }

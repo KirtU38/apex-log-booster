@@ -125,6 +125,12 @@ export function analyzeSOQL() : void {
                 continue;
             }
 
+            // TRIGGERS
+            if (line.startsWith('DEBUG')) {
+                mainLogSection.push(line + '\n');
+                continue;
+            }
+
             // Errors
             if (line.startsWith('ERROR')) {
                 mainLogSection.push(line + '\n');
