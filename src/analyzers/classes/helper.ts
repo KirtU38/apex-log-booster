@@ -22,6 +22,13 @@ export enum LogType {
     methodEntry,
     methodExit,
     soqlExecuteBegin,
+    limitStart,
+    limitSOQL,
+    limitSOQLRows,
+    limitDML,
+    limitDMLRows,
+    limitCPU,
+    limitEnd,
 };
 
 export const LOG_OBJECTS = new Map<LogType, Log>([
@@ -40,4 +47,12 @@ export const LOG_OBJECTS = new Map<LogType, Log>([
     [LogType.methodEntry,      {hook: 'METHOD_ENTRY',             matcher: /.+METHOD_ENTRY\|.+\|(.+)/i,                            replacer: 'ENTER: $1',                  orderAnalyzer: false, soqlAnalyzer: true }],
     [LogType.methodExit,       {hook: 'METHOD_EXIT',              matcher: /.+METHOD_EXIT\|.+\|.+\|(.+)/i,                         replacer: 'EXIT:  $1',                  orderAnalyzer: false, soqlAnalyzer: true }],
     [LogType.soqlExecuteBegin, {hook: 'SOQL_EXECUTE_BEGIN',       matcher: /.+SOQL_EXECUTE_BEGIN\|.+\|(.+)/i,                      replacer: 'SOQL:  $1',                  orderAnalyzer: false, soqlAnalyzer: true }],
+    // Limits info
+    [LogType.limitStart,    {hook: 'LIMIT_USAGE_FOR_NS\\|\\(default\\)\\|', matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
+    [LogType.limitEnd,      {hook: '  Number of Mobile Apex push calls:',   matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
+    [LogType.limitSOQL,     {hook: '  Number of SOQL queries:',             matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
+    [LogType.limitSOQLRows, {hook: '  Number of query rows:',               matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
+    [LogType.limitDML,      {hook: '  Number of DML statements:',           matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
+    [LogType.limitDMLRows,  {hook: '  Number of DML rows:',                 matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
+    [LogType.limitCPU,      {hook: '  Maximum CPU time:',                   matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
 ]);
