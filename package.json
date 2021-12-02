@@ -1,8 +1,8 @@
 {
-	"name": "log-booster",
-	"displayName": "Log Booster",
+	"name": "apex-log-booster",
+	"displayName": "Apex Log Booster",
 	"description": "",
-	"version": "0.0.1",
+	"version": "0.0.3",
 	"engines": {
 		"vscode": "^1.62.0"
 	},
@@ -10,18 +10,18 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onCommand:log-booster.analyzeOrderOfExecution",
-		"onCommand:log-booster.analyzeSOQL"
+		"onCommand:apex-log-booster.analyzeOrderOfExecution",
+		"onCommand:apex-log-booster.analyzeSOQL"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
 		"commands": [
 			{
-				"command": "log-booster.analyzeOrderOfExecution",
+				"command": "apex-log-booster.analyzeOrderOfExecution",
 				"title": "Log: Order of Execution"
 			},
             {
-				"command": "log-booster.analyzeSOQL",
+				"command": "apex-log-booster.analyzeSOQL",
 				"title": "Log: SOQL Analyzer"
 			}
 		],
@@ -29,11 +29,11 @@
             "editor/context": [
                 {
                     "when": "resourceLangId == apexlog",
-                    "command": "log-booster.analyzeOrderOfExecution"
+                    "command": "apex-log-booster.analyzeOrderOfExecution"
                 },
                 {
                     "when": "resourceLangId == apexlog",
-                    "command": "log-booster.analyzeSOQL"
+                    "command": "apex-log-booster.analyzeSOQL"
                 }
             ]
         }

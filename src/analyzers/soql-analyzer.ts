@@ -91,7 +91,6 @@ export function analyzeSOQL() : void {
                 let currentMethod = mapOfMethodNameToObject.get(lastMethod.name);
                 if (currentMethod) {
                     currentMethod.numberOfQueries++;
-                    console.log(currentMethod);
                     
                     let currentSOQLCountForTrigger = currentMethod.triggers.get(lastTrigger);
                     if (!currentSOQLCountForTrigger) {
@@ -151,7 +150,7 @@ export function analyzeSOQL() : void {
         wsEdit.insert(newFileUri, new vscode.Position(1, 1), finalFileText.text);
         vscode.workspace.applyEdit(wsEdit).then(() => {
             vscode.workspace.openTextDocument(newFileUri);
-            vscode.window.showInformationMessage('Log successfully analyzed');
+            vscode.window.showInformationMessage('Log successfully analyzed!');
         });
     });
 }
