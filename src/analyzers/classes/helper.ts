@@ -1,11 +1,3 @@
-type Log = {
-    hook: string,
-    matcher: RegExp,
-    replacer: string,
-    orderAnalyzer: boolean,
-    soqlAnalyzer: boolean
-};
-
 export enum LogType {
     triggerStarted,
     triggerFinished,
@@ -29,30 +21,61 @@ export enum LogType {
     limitDMLRows,
     limitCPU,
     limitEnd,
+    managedPKG,
 };
 
+type Log = {
+    hook: string,
+    marker: string
+    matcher: RegExp,
+    replacer: string,
+    orderAnalyzer: boolean,
+    soqlAnalyzer: boolean
+};
+
+const LOG_MARKERS = new Map<LogType, string>([
+    [LogType.triggerStarted,   'TRIGGER_STARTED'],
+    [LogType.triggerFinished,  'TRIGGER_FINISHED'],
+    [LogType.validationRule,   'VALIDATION RULE'],
+    [LogType.validationPass,   'VALIDATION PASSED'],
+    [LogType.validationFail,   'VALIDATION FAILED'],
+    [LogType.wfCriteriaBegin,  'WORKFLOW_RULE'],
+    [LogType.wfCriteriaEnd,    'WORKFLOW_PASSED'],
+    [LogType.wfFieldUpdate,    'WORKFLOW_UPDATE'],
+    [LogType.flowStart,        'FLOW_START'],
+    [LogType.userDebug,        'DEBUG'],
+    [LogType.dmlBegin,         'DML'],
+    [LogType.fatalError,       'ERROR'],
+    [LogType.methodEntry,      'ENTER'],
+    [LogType.methodExit,       'EXIT'],
+    [LogType.soqlExecuteBegin, 'SOQL'],
+    [LogType.managedPKG,       'ENTERING_MANAGED_PKG'],
+]);
+
 export const LOG_OBJECTS = new Map<LogType, Log>([
-    [LogType.triggerStarted,   {hook: 'trigger event',            matcher: /.+CODE_UNIT_STARTED.+trigger event (.+)\|.+\/(\w+)/i,  replacer: 'TRIGGER_STARTED:  $2 $1',    orderAnalyzer: true,  soqlAnalyzer: true }],
-    [LogType.triggerFinished,  {hook: 'trigger event',            matcher: /.+CODE_UNIT_FINISHED.+trigger event (.+)\|.+\/(\w+)/i, replacer: 'TRIGGER_FINISHED: $2 $1',    orderAnalyzer: true,  soqlAnalyzer: true }],
-    [LogType.validationRule,   {hook: 'VALIDATION_RULE',          matcher: /.+VALIDATION_RULE\|\w+\|(\w+)/i,                       replacer: 'VALIDATION RULE:  $1',       orderAnalyzer: true,  soqlAnalyzer: false}],
-    [LogType.validationPass,   {hook: 'VALIDATION_PASS',          matcher: /.+VALIDATION_PASS/i,                                   replacer: 'VALIDATION PASSED',          orderAnalyzer: true,  soqlAnalyzer: false}],
-    [LogType.validationFail,   {hook: 'VALIDATION_FAIL',          matcher: /.+VALIDATION_PASS.*/i,                                 replacer: 'VALIDATION FAILED',          orderAnalyzer: true,  soqlAnalyzer: false}],
-    [LogType.wfCriteriaBegin,  {hook: 'WF_CRITERIA_BEGIN',        matcher: /.+WF_CRITERIA_BEGIN\|\[.+\]\|(.+)\|.+\|.+\|.+/i,       replacer: 'WORKFLOW RULE:    $1',       orderAnalyzer: true,  soqlAnalyzer: false}],
-    [LogType.wfCriteriaEnd,    {hook: 'WF_CRITERIA_END',          matcher: /.+WF_CRITERIA_END\|(\w+)/i,                            replacer: 'WORKFLOW PASSED:  $1',       orderAnalyzer: true,  soqlAnalyzer: false}],
-    [LogType.wfFieldUpdate,    {hook: 'WF_FIELD_UPDATE',          matcher: /.+WF_FIELD_UPDATE\|(.+)/i,                             replacer: 'WORKFLOW UPDATE:  $1',       orderAnalyzer: true,  soqlAnalyzer: false}],
-    [LogType.flowStart,        {hook: 'FLOW_START_INTERVIEW_END', matcher: /.+FLOW_START_INTERVIEW_END\|.+\|(.+)/i,                replacer: 'FLOW START:       $1',       orderAnalyzer: true,  soqlAnalyzer: false}],
-    [LogType.userDebug,        {hook: 'USER_DEBUG',               matcher: /.+USER_DEBUG.+\|DEBUG\|(.*)/i,                         replacer: 'DEBUG: $1',                  orderAnalyzer: true,  soqlAnalyzer: true }],
-    [LogType.dmlBegin,         {hook: 'DML_BEGIN',                matcher: /.+DML_BEGIN.+Op:(\w+)\|Type:(\w+)\|(Rows:\w+)/i,       replacer: 'DML:   $1 $2 $3',            orderAnalyzer: true,  soqlAnalyzer: false}],
-    [LogType.fatalError,       {hook: '\\|FATAL_ERROR',           matcher: /.+FATAL_ERROR\|(.+)/i,                                 replacer: 'ERROR: $1',                  orderAnalyzer: true,  soqlAnalyzer: true }],
-    [LogType.methodEntry,      {hook: 'METHOD_ENTRY',             matcher: /.+METHOD_ENTRY\|.+\|(.+)/i,                            replacer: 'ENTER: $1',                  orderAnalyzer: false, soqlAnalyzer: true }],
-    [LogType.methodExit,       {hook: 'METHOD_EXIT',              matcher: /.+METHOD_EXIT\|.+\|.+\|(.+)/i,                         replacer: 'EXIT:  $1',                  orderAnalyzer: false, soqlAnalyzer: true }],
-    [LogType.soqlExecuteBegin, {hook: 'SOQL_EXECUTE_BEGIN',       matcher: /.+SOQL_EXECUTE_BEGIN\|.+\|(.+)/i,                      replacer: 'SOQL:  $1',                  orderAnalyzer: false, soqlAnalyzer: true }],
+    [LogType.triggerStarted,   {hook: 'trigger event',            marker: LOG_MARKERS.get(LogType.triggerStarted)!,  matcher: /.+CODE_UNIT_STARTED.+trigger event (.+)\|.+\/(\w+)/i,  replacer: LOG_MARKERS.get(LogType.triggerStarted) + ':  $2 $1', orderAnalyzer: true,  soqlAnalyzer: true }],
+    [LogType.triggerFinished,  {hook: 'trigger event',            marker: LOG_MARKERS.get(LogType.triggerFinished)!, matcher: /.+CODE_UNIT_FINISHED.+trigger event (.+)\|.+\/(\w+)/i, replacer: LOG_MARKERS.get(LogType.triggerFinished) + ': $2 $1', orderAnalyzer: true,  soqlAnalyzer: true }],
+    [LogType.validationRule,   {hook: 'VALIDATION_RULE',          marker: LOG_MARKERS.get(LogType.validationRule)!,  matcher: /.+VALIDATION_RULE\|\w+\|(\w+)/i,                       replacer: LOG_MARKERS.get(LogType.validationRule) + ':  $1',    orderAnalyzer: true,  soqlAnalyzer: false}],
+    [LogType.validationPass,   {hook: 'VALIDATION_PASS',          marker: LOG_MARKERS.get(LogType.validationPass)!,       matcher: /.+VALIDATION_PASS/i,                              replacer: LOG_MARKERS.get(LogType.validationPass)!,             orderAnalyzer: true,  soqlAnalyzer: false}],
+    [LogType.validationFail,   {hook: 'VALIDATION_FAIL',          marker: LOG_MARKERS.get(LogType.validationFail)!,           matcher: /.+VALIDATION_PASS.*/i,                        replacer: LOG_MARKERS.get(LogType.validationFail)!,             orderAnalyzer: true,  soqlAnalyzer: false}],
+    [LogType.wfCriteriaBegin,  {hook: 'WF_CRITERIA_BEGIN',        marker: LOG_MARKERS.get(LogType.wfCriteriaBegin)!,    matcher: /.+WF_CRITERIA_BEGIN\|\[.+\]\|(.+)\|.+\|.+\|.+/i,    replacer: LOG_MARKERS.get(LogType.wfCriteriaBegin) + ':    $1', orderAnalyzer: true,  soqlAnalyzer: false}],
+    [LogType.wfCriteriaEnd,    {hook: 'WF_CRITERIA_END',          marker: LOG_MARKERS.get(LogType.wfCriteriaEnd)!,  matcher: /.+WF_CRITERIA_END\|(\w+)/i,                             replacer: LOG_MARKERS.get(LogType.wfCriteriaEnd) + ':  $1',     orderAnalyzer: true,  soqlAnalyzer: false}],
+    [LogType.wfFieldUpdate,    {hook: 'WF_FIELD_UPDATE',          marker: LOG_MARKERS.get(LogType.wfFieldUpdate)!,  matcher: /.+WF_FIELD_UPDATE\|(.+)/i,                              replacer: LOG_MARKERS.get(LogType.wfFieldUpdate) + ':  $1',     orderAnalyzer: true,  soqlAnalyzer: false}],
+    [LogType.flowStart,        {hook: 'FLOW_START_INTERVIEW_END', marker: LOG_MARKERS.get(LogType.flowStart)!,       matcher: /.+FLOW_START_INTERVIEW_END\|.+\|(.+)/i,                replacer: LOG_MARKERS.get(LogType.flowStart) + ':       $1',    orderAnalyzer: true,  soqlAnalyzer: true }],
+    [LogType.userDebug,        {hook: 'USER_DEBUG',               marker: LOG_MARKERS.get(LogType.userDebug)!,            matcher: /.+USER_DEBUG.+\|DEBUG\|(.*)/i,                    replacer: LOG_MARKERS.get(LogType.userDebug) + ': $1',          orderAnalyzer: true,  soqlAnalyzer: true }],
+    [LogType.dmlBegin,         {hook: 'DML_BEGIN',                marker: LOG_MARKERS.get(LogType.dmlBegin)!,              matcher: /.+DML_BEGIN.+Op:(\w+)\|Type:(\w+)\|(Rows:\w+)/i, replacer: LOG_MARKERS.get(LogType.dmlBegin) + ':   $1 $2 $3',   orderAnalyzer: true,  soqlAnalyzer: false}],
+    [LogType.fatalError,       {hook: '\\|FATAL_ERROR',           marker: LOG_MARKERS.get(LogType.fatalError)!,            matcher: /.+FATAL_ERROR\|(.+)/i,                           replacer: LOG_MARKERS.get(LogType.fatalError) + ': $1',         orderAnalyzer: true,  soqlAnalyzer: true }],
+    [LogType.methodEntry,      {hook: 'METHOD_ENTRY',             marker: LOG_MARKERS.get(LogType.methodEntry)!,            matcher: /.+METHOD_ENTRY\|.+\|(.+)/i,                     replacer: LOG_MARKERS.get(LogType.methodEntry) + ': $1',        orderAnalyzer: false, soqlAnalyzer: true }],
+    [LogType.methodExit,       {hook: 'METHOD_EXIT',              marker: LOG_MARKERS.get(LogType.methodExit)!,             matcher: /.+METHOD_EXIT\|.+\|.+\|(.+)/i,                  replacer: LOG_MARKERS.get(LogType.methodExit) + ':  $1',        orderAnalyzer: false, soqlAnalyzer: true }],
+    [LogType.soqlExecuteBegin, {hook: 'SOQL_EXECUTE_BEGIN',       marker: LOG_MARKERS.get(LogType.soqlExecuteBegin)!,             matcher: /.+SOQL_EXECUTE_BEGIN\|.+\|(.+)/i,         replacer: LOG_MARKERS.get(LogType.soqlExecuteBegin) + ':  $1',  orderAnalyzer: false, soqlAnalyzer: true }],
     // Limits info
-    [LogType.limitStart,    {hook: 'LIMIT_USAGE_FOR_NS\\|\\(default\\)\\|', matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
-    [LogType.limitEnd,      {hook: '  Number of Mobile Apex push calls:',   matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
-    [LogType.limitSOQL,     {hook: '  Number of SOQL queries:',             matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
-    [LogType.limitSOQLRows, {hook: '  Number of query rows:',               matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
-    [LogType.limitDML,      {hook: '  Number of DML statements:',           matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
-    [LogType.limitDMLRows,  {hook: '  Number of DML rows:',                 matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
-    [LogType.limitCPU,      {hook: '  Maximum CPU time:',                   matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
+    [LogType.limitStart,    {hook: 'LIMIT_USAGE_FOR_NS\\|\\(default\\)\\|', marker:'', matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
+    [LogType.limitEnd,      {hook: '  Number of Mobile Apex push calls:',   marker:'', matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
+    [LogType.limitSOQL,     {hook: '  Number of SOQL queries:',             marker:'', matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
+    [LogType.limitSOQLRows, {hook: '  Number of query rows:',               marker:'', matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
+    [LogType.limitDML,      {hook: '  Number of DML statements:',           marker:'', matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
+    [LogType.limitDMLRows,  {hook: '  Number of DML rows:',                 marker:'', matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
+    [LogType.limitCPU,      {hook: '  Maximum CPU time:',                   marker:'', matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
+    // To exclude SOQL from managed PKG from Methods SOQL count
+    [LogType.managedPKG,    {hook: 'ENTERING_MANAGED_PKG',                  marker: LOG_MARKERS.get(LogType.managedPKG)!, matcher: /(.*)/, replacer: '$1', orderAnalyzer: false, soqlAnalyzer: true }],
 ]);
