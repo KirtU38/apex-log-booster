@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import { LogType } from './classes/helper';
 import { LOG_OBJECTS } from './classes/helper';
 
-const filePostfix = 'analyzedSOQL';
 type Method = {
     name: string, 
     numberOfQueries: number, 
@@ -11,13 +10,8 @@ type Method = {
 type TextWrap = {
     text: string
 };
-type Limits = {
-    numberOfSOQL: string,
-    numberOfSOQLRows: string,
-    numberOfDML: string,
-    numberOfDMLRows: string,
-    cpuTime: string
-};
+
+const filePostfix = 'analyzedSOQL';
 const ignorableClasses = new Set([
     'System',
     'AqTriggerHandler',
@@ -116,11 +110,11 @@ export function analyzeSOQL() : void {
             }
 
             // TRIGGERS
-            if (line.startsWith('TRIGGER STARTED')) {
+            if (line.startsWith('TRIGGER_STARTED')) {
                 mainLogSection.push(line + '\n');
-                lastTrigger = line.replace(/TRIGGER STARTED:\s+(.+)/i, '$1');
+                lastTrigger = line.replace(/TRIGGER_STARTED:\s+(.+)/i, '$1');
                 continue;
-            } else if(line.startsWith('TRIGGER FINISHED')) {
+            } else if(line.startsWith('TRIGGER_FINISHED')) {
                 mainLogSection.push(line + '\n');
                 continue;
             }

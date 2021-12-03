@@ -32,8 +32,8 @@ export enum LogType {
 };
 
 export const LOG_OBJECTS = new Map<LogType, Log>([
-    [LogType.triggerStarted,   {hook: 'trigger event',            matcher: /.+CODE_UNIT_STARTED.+trigger event (.+)\|.+\/(\w+)/i,  replacer: 'TRIGGER STARTED:  $2 $1',    orderAnalyzer: true,  soqlAnalyzer: true }],
-    [LogType.triggerFinished,  {hook: 'trigger event',            matcher: /.+CODE_UNIT_FINISHED.+trigger event (.+)\|.+\/(\w+)/i, replacer: 'TRIGGER FINISHED: $2 $1',    orderAnalyzer: true,  soqlAnalyzer: true }],
+    [LogType.triggerStarted,   {hook: 'trigger event',            matcher: /.+CODE_UNIT_STARTED.+trigger event (.+)\|.+\/(\w+)/i,  replacer: 'TRIGGER_STARTED:  $2 $1',    orderAnalyzer: true,  soqlAnalyzer: true }],
+    [LogType.triggerFinished,  {hook: 'trigger event',            matcher: /.+CODE_UNIT_FINISHED.+trigger event (.+)\|.+\/(\w+)/i, replacer: 'TRIGGER_FINISHED: $2 $1',    orderAnalyzer: true,  soqlAnalyzer: true }],
     [LogType.validationRule,   {hook: 'VALIDATION_RULE',          matcher: /.+VALIDATION_RULE\|\w+\|(\w+)/i,                       replacer: 'VALIDATION RULE:  $1',       orderAnalyzer: true,  soqlAnalyzer: false}],
     [LogType.validationPass,   {hook: 'VALIDATION_PASS',          matcher: /.+VALIDATION_PASS/i,                                   replacer: 'VALIDATION PASSED',          orderAnalyzer: true,  soqlAnalyzer: false}],
     [LogType.validationFail,   {hook: 'VALIDATION_FAIL',          matcher: /.+VALIDATION_PASS.*/i,                                 replacer: 'VALIDATION FAILED',          orderAnalyzer: true,  soqlAnalyzer: false}],
