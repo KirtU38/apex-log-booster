@@ -5,6 +5,7 @@ import { TextWrap } from './classes/helper';
 import { TypeWrap } from './classes/helper';
 import { BooleanWrap } from './classes/helper';
 import { Method } from './classes/helper';
+import { LogLine } from './classes/helper';
 
 const filePostfix = 'analyzedSOQL';
 const ignorableClasses = new Set([
@@ -44,10 +45,10 @@ export function analyzeSOQL() {
     let newFileUri = vscode.Uri.parse(newFilePath);
     let wsEdit = new vscode.WorkspaceEdit();
     wsEdit.createFile(newFileUri, { overwrite: true, ignoreIfExists: false });
-    let filteredLines: string[] = [];
+    let filteredLines: LogLine[] = [];
     
     // Sections
-    let mainLogSection: string[] = [];
+    let mainLogSection: LogLine[] = [];
     let soqlInfoSection: string[] = [];
     let errorsSection: string[] = [];
     let limits: Map<LogType, string> = new Map<LogType, string>();
@@ -56,7 +57,7 @@ export function analyzeSOQL() {
         // Первый прогон выбрать и подписать только нужные лайны
         for (let i = 0; i < doc.lineCount; i++) {
             let line = doc.lineAt(i);
-            let formatted = formatLine(line.text);
+            let formatted = formatLine(line.text, i);
             if(formatted) {
                 filteredLines.push(formatted);
             }
@@ -85,9 +86,9 @@ export function analyzeSOQL() {
         let finalFileText: TextWrap = {text: ''};
         printMarkers(finalFileText);
         printLimits(limits, finalFileText);
-        printSection(soqlInfoSection, finalFileText);
-        printSection(errorsSection, finalFileText);
-        printSection(mainLogSection, finalFileText);
+        printSQOLInfoSection(soqlInfoSection, finalFileText);
+        printErrorSection(errorsSection, finalFileText);
+        printMainSection(mainLogSection, finalFileText);
 
         // Insert in the new document
         wsEdit.insert(newFileUri, new vscode.Position(1, 1), finalFileText.text);
@@ -98,85 +99,38 @@ export function analyzeSOQL() {
     });
 }
 
-function formatLine(line: string) : string | null {
-    for (const key of LOG_OBJECTS.keys()) {
-        let logObject = LOG_OBJECTS.get(key);
-        if(!logObject || !logObject.soqlAnalyzer || line.search(logObject.hook) === -1) {
+function formatLine(line: string, i: number) : LogLine | null {
+    for (const logType of LOG_OBJECTS.keys()) {
+        let logInfoObject = LOG_OBJECTS.get(logType);
+        if(!logInfoObject || !logInfoObject.soqlAnalyzer || line.search(logInfoObject.hook) === -1) {
             continue;
         };
-        if(key === LogType.triggerStarted || key === LogType.triggerFinished) {
-            let correctTrigger;
+        if(logType === LogType.triggerStarted || logType === LogType.triggerFinished) {
             if(line.search('CODE_UNIT_STARTED') !== -1) {
-                correctTrigger = LOG_OBJECTS.get(LogType.triggerStarted);
+                return {type: LogType.triggerStarted, text: line.replace(LOG_OBJECTS.get(LogType.triggerStarted)!.matcher, LOG_OBJECTS.get(LogType.triggerStarted)!.replacer), lineNumber: i};
             } else {
-                correctTrigger = LOG_OBJECTS.get(LogType.triggerFinished);
-            }
-            if(correctTrigger) {
-                return line.replace(correctTrigger.matcher, correctTrigger.replacer);
+                return {type: LogType.triggerFinished, text: line.replace(LOG_OBJECTS.get(LogType.triggerFinished)!.matcher, LOG_OBJECTS.get(LogType.triggerFinished)!.replacer), lineNumber: i};
             }
         }
-        return line.replace(logObject.matcher, logObject.replacer);
+        return {type: logType, text: line.replace(logInfoObject.matcher, logInfoObject.replacer), lineNumber: i + 1};
+
     }
     return null;
 }
 
-function populateLimitsInfo(line: string, limits: Map<LogType,string>) : void {
-    if (line.startsWith(LOG_OBJECTS.get(LogType.limitSOQL)!.hook)) {
-        limits.set(LogType.limitSOQL, line);
-    } else if (line.startsWith(LOG_OBJECTS.get(LogType.limitSOQLRows)!.hook)) {
-        limits.set(LogType.limitSOQLRows, line);
-    } else if (line.startsWith(LOG_OBJECTS.get(LogType.limitDML)!.hook)) {
-        limits.set(LogType.limitDML, line);
-    } else if (line.startsWith(LOG_OBJECTS.get(LogType.limitDMLRows)!.hook)) {
-        limits.set(LogType.limitDMLRows, line);
-    } else if (line.startsWith(LOG_OBJECTS.get(LogType.limitCPU)!.hook)) {
-        limits.set(LogType.limitCPU, line);
-    }
-}
-
-function printSection(sectionArray: string[], finalFileText: TextWrap) : void {
-    if(sectionArray.length === 0){
-        return;
-    }
-    for (const e of sectionArray) {
-        finalFileText.text += e;
-    }
-    finalFileText.text += '\n\n';
-}
-
-function printLimits(limits: Map<LogType,string>, finalFileText: TextWrap) : void {
-    finalFileText.text += 'Limits:\n';
-    finalFileText.text += limits.get(LogType.limitSOQL)!.trim() + '\n';
-    finalFileText.text += limits.get(LogType.limitSOQLRows)!.trim() + '\n';
-    finalFileText.text += limits.get(LogType.limitDML)!.trim() + '\n';
-    finalFileText.text += limits.get(LogType.limitDMLRows)!.trim() + '\n';
-    finalFileText.text += limits.get(LogType.limitCPU)!.trim() + '\n';
-    finalFileText.text += '\n\n';
-}
-
-function printMarkers(finalFileText: TextWrap) : void {
-    finalFileText.text += 'Avaliable markers:\n';
-    for (const logObject of LOG_OBJECTS.values()) {
-        if(logObject.soqlAnalyzer && logObject.marker) {
-            finalFileText.text += logObject.marker + '\n';
-        }
-    }
-    finalFileText.text += '\n\n';
-}
-
-function handleMethods(line:string, mainLogSection: string[], previousLine: TypeWrap, lastMethod: Method, mapOfMethodNameToObject: Map<string, Method>): boolean {
-    if (line.startsWith(LOG_OBJECTS.get(LogType.methodEntry)!.marker) || line.startsWith(LOG_OBJECTS.get(LogType.methodExit)!.marker)) {
-        if (ignorableClasses.has(line.replace(/\w+:\s+(\w+)\..+/i, '$1'))) {
+function handleMethods(line: LogLine, mainLogSection: LogLine[], previousLine: TypeWrap, lastMethod: Method, mapOfMethodNameToObject: Map<string, Method>): boolean {
+    if (line.type === LogType.methodEntry || line.type === LogType.methodExit) {
+        if (ignorableClasses.has(line.text.replace(/\w+:\s+(\w+)\.*.*/i, '$1'))) {
             return true;
         }
-        mainLogSection.push(line + '\n');
+        mainLogSection.push(line);
         previousLine.type = LogType.methodEntry;
-        if (line.startsWith(LOG_OBJECTS.get(LogType.methodEntry)!.marker)) {
-            if (!mapOfMethodNameToObject.get(line)) {
-                lastMethod.name = line;
+        if (line.type === LogType.methodEntry) {
+            if (!mapOfMethodNameToObject.get(line.text)) {
+                lastMethod.name = line.text;
                 lastMethod.numberOfQueries = 0;
                 lastMethod.triggers = new Map<string, number>();
-                mapOfMethodNameToObject.set(line, lastMethod);
+                mapOfMethodNameToObject.set(line.text, lastMethod);
             }
         }
         return true;
@@ -184,9 +138,9 @@ function handleMethods(line:string, mainLogSection: string[], previousLine: Type
     return false;
 }
 
-function handleSOQL(line:string, mainLogSection: string[], previousLine: TypeWrap, lastMethod: Method, mapOfMethodNameToObject: Map<string, Method>, lastTrigger: TextWrap): boolean {
-    if (line.startsWith(LOG_OBJECTS.get(LogType.soqlExecuteBegin)!.marker)) {
-        mainLogSection.push(line + ' (' + lastTrigger + ')\n');
+function handleSOQL(line: LogLine, mainLogSection: LogLine[], previousLine: TypeWrap, lastMethod: Method, mapOfMethodNameToObject: Map<string, Method>, lastTrigger: TextWrap): boolean {
+    if (line.type === LogType.soqlExecuteBegin) {
+        mainLogSection.push(line);
         if (lastMethod.name === 'null') {
             previousLine.type = LogType.soqlExecuteBegin;
             return true;
@@ -210,56 +164,55 @@ function handleSOQL(line:string, mainLogSection: string[], previousLine: TypeWra
     return false;
 }
 
-function handleTriggers(line: string, mainLogSection: string[], previousLine: TypeWrap, lastTrigger: TextWrap): boolean {
-    if (line.startsWith(LOG_OBJECTS.get(LogType.triggerStarted)!.marker)) {
-        mainLogSection.push(line + '\n');
-        lastTrigger.text = line.replace(/TRIGGER_STARTED:\s+(.+)/i, '$1');
+function handleTriggers(line: LogLine, mainLogSection: LogLine[], previousLine: TypeWrap, lastTrigger: TextWrap): boolean {
+    if (line.type === LogType.triggerStarted) {
+        mainLogSection.push(line);
+        lastTrigger.text = line.text.replace(/TRIGGER_STARTED:\s+(.+)/i, '$1');
         previousLine.type = LogType.triggerStarted;
         return true;
-    } else if(line.startsWith(LOG_OBJECTS.get(LogType.triggerFinished)!.marker)) {
-        mainLogSection.push(line + '\n');
+    } else if(line.type === LogType.triggerFinished) {
+        mainLogSection.push(line);
         previousLine.type = LogType.triggerFinished;
         return true;
     }
     return false;
 }
 
-function handleFlows(line: string, mainLogSection: string[], previousLine: TypeWrap): boolean {
-    if(line.startsWith(LOG_OBJECTS.get(LogType.flowStart)!.marker)) {
-        mainLogSection.push(line + '\n');
+function handleFlows(line: LogLine, mainLogSection: LogLine[], previousLine: TypeWrap): boolean {
+    if(line.type === LogType.flowStart) {
+        mainLogSection.push(line);
         previousLine.type = LogType.flowStart;
         return true;
     }
     return false;
 }
 
-function handleDebug(line: string, mainLogSection: string[], previousLine: TypeWrap): boolean {
-    if (line.startsWith(LOG_OBJECTS.get(LogType.userDebug)!.marker)) {
-        mainLogSection.push(line + '\n');
+function handleDebug(line: LogLine, mainLogSection: LogLine[], previousLine: TypeWrap): boolean {
+    if (line.type === LogType.userDebug) {
+        mainLogSection.push(line);
         previousLine.type = LogType.userDebug;
         return true;
     }
     return false;
 }
 
-function handleErrors(line: string, mainLogSection: string[], previousLine: TypeWrap, errorsSection: string[]): boolean {
-    if (line.startsWith(LOG_OBJECTS.get(LogType.fatalError)!.marker)) {
-        mainLogSection.push(line + '\n');
+function handleErrors(line: LogLine, mainLogSection: LogLine[], previousLine: TypeWrap, errorsSection: string[]): boolean {
+    if (line.type === LogType.fatalError) {
+        mainLogSection.push(line);
         if(errorsSection.length === 0) {
-            errorsSection.push('Errors:\n');
+            errorsSection.push('Errors:');
         }
-        errorsSection.push(line + '\n');
+        errorsSection.push(line.text);
         previousLine.type = LogType.fatalError;
         return true;
     }
     return false;
 }
 
-function handleManagedPKG(line: string, mainLogSection: string[], previousLine: TypeWrap): boolean {
-    if(line.startsWith(LOG_OBJECTS.get(LogType.managedPKG)!.marker)) {
+function handleManagedPKG(line: LogLine, mainLogSection: LogLine[], previousLine: TypeWrap): boolean {
+    if(line.type === LogType.managedPKG) {
         if(previousLine.type !== LogType.managedPKG) {
-            console.log(previousLine.type);
-            mainLogSection.push(line + '\n');
+            mainLogSection.push(line);
         }
         previousLine.type = LogType.managedPKG;
         return true;
@@ -267,16 +220,16 @@ function handleManagedPKG(line: string, mainLogSection: string[], previousLine: 
     return false;
 }
 
-function handleLimits(line: string, limits: Map<LogType, string>, correctLimitsInfoStarted: BooleanWrap): boolean {
-    if (line.search(LOG_OBJECTS.get(LogType.limitStart)!.hook) !== -1) {
+function handleLimits(line: LogLine, limits: Map<LogType, string>, correctLimitsInfoStarted: BooleanWrap): boolean {
+    if (line.text.search(LOG_OBJECTS.get(LogType.limitStart)!.hook) !== -1) {
         correctLimitsInfoStarted.is = true;
         return true;
-    } else if (line.startsWith(LOG_OBJECTS.get(LogType.limitEnd)!.hook)) {
+    } else if (line.text.startsWith(LOG_OBJECTS.get(LogType.limitEnd)!.hook)) {
         correctLimitsInfoStarted.is = false;
         return true;
     }
     if (correctLimitsInfoStarted.is === true) {
-        populateLimitsInfo(line, limits);
+        populateLimitsInfo(line.text, limits);
         return true;
     }
     return false;
@@ -298,6 +251,7 @@ function handleSOQLInfoSection(soqlInfoSection: string[], mapOfMethodNameToObjec
             return b.numberOfQueries - a.numberOfQueries;
         });
         
+        let totalSOQLQueries = 0;
         for (const method of listOfMethods) {
             // Flatten method.triggers map
             let triggersString: string = '(';
@@ -306,8 +260,72 @@ function handleSOQLInfoSection(soqlInfoSection: string[], mapOfMethodNameToObjec
             }
             triggersString = triggersString.substr(0, triggersString.length - 2);
             triggersString += ')';
-            soqlInfoSection.push(method.numberOfQueries + ' - ' + method.name.replace(/ENTER:\s+(.+)/i, '$1') + ' - ' + triggersString + '\n');
+            soqlInfoSection.push(method.numberOfQueries + ' - ' + method.name.replace(/ENTER:\s+(.+)/i, '$1') + ' - ' + triggersString);
+            totalSOQLQueries += method.numberOfQueries;
         }
+        soqlInfoSection.push(totalSOQLQueries + ' - Total SOQL Queries from Apex Methods');
 }
 
+function populateLimitsInfo(line: string, limits: Map<LogType,string>) : void {
+    if (line.startsWith(LOG_OBJECTS.get(LogType.limitSOQL)!.hook)) {
+        limits.set(LogType.limitSOQL, line);
+    } else if (line.startsWith(LOG_OBJECTS.get(LogType.limitSOQLRows)!.hook)) {
+        limits.set(LogType.limitSOQLRows, line);
+    } else if (line.startsWith(LOG_OBJECTS.get(LogType.limitDML)!.hook)) {
+        limits.set(LogType.limitDML, line);
+    } else if (line.startsWith(LOG_OBJECTS.get(LogType.limitDMLRows)!.hook)) {
+        limits.set(LogType.limitDMLRows, line);
+    } else if (line.startsWith(LOG_OBJECTS.get(LogType.limitCPU)!.hook)) {
+        limits.set(LogType.limitCPU, line);
+    }
+}
 
+function printMainSection(sectionArray: LogLine[], finalFileText: TextWrap) : void {
+    if(sectionArray.length === 0) {
+        return;
+    }
+    for (const e of sectionArray) {
+        finalFileText.text += e.text + ' :' + e.lineNumber + '\n';
+    }
+    finalFileText.text += '\n';
+}
+
+function printSQOLInfoSection(soqlInfoSection: string[], finalFileText: TextWrap) : void {
+    if(soqlInfoSection.length === 0) {
+        return;
+    }
+    for (const e of soqlInfoSection) {
+        finalFileText.text += e + '\n';
+    }
+    finalFileText.text += '\n';
+}
+
+function printErrorSection(errorsSection: string[], finalFileText: TextWrap) : void {
+    if(errorsSection.length === 0) {
+        return;
+    }
+    for (const e of errorsSection) {
+        finalFileText.text += e + '\n';
+    }
+    finalFileText.text += '\n';
+}
+
+function printLimits(limits: Map<LogType,string>, finalFileText: TextWrap) : void {
+    finalFileText.text += 'Limits:\n';
+    finalFileText.text += limits.get(LogType.limitSOQL)!.trim() + '\n';
+    finalFileText.text += limits.get(LogType.limitSOQLRows)!.trim() + '\n';
+    finalFileText.text += limits.get(LogType.limitDML)!.trim() + '\n';
+    finalFileText.text += limits.get(LogType.limitDMLRows)!.trim() + '\n';
+    finalFileText.text += limits.get(LogType.limitCPU)!.trim() + '\n';
+    finalFileText.text += '\n';
+}
+
+function printMarkers(finalFileText: TextWrap) : void {
+    finalFileText.text += 'Avaliable markers:\n';
+    for (const logObject of LOG_OBJECTS.values()) {
+        if(logObject.soqlAnalyzer && logObject.marker) {
+            finalFileText.text += '- ' + logObject.marker + '\n';
+        }
+    }
+    finalFileText.text += '\n';
+}
