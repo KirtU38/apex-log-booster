@@ -40,7 +40,24 @@
                     "group": "zLogBooster@2"
                 }
             ]
-        }
+        },
+        "configuration": [
+            {
+                "title": "Apex Log Booster",
+                "properties": {
+                    "logFormat.showLineNumbers": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Show line number after a Log line."
+                    },
+                    "logFormat.ignoredClasses": {
+                        "type": "string",
+                        "default": "System, AqTriggerHandler, TriggerContext, Triggers, QueryFactory, SObjectDescribeHelper, ContactSelector, SObjectSelector, GovernorLimits, GeneralSelector, DMLHelper, Log, Aq, ObjectIdentifier, StringHelper, UserSelector, OpportunitySelector, PSASelector, GroupSelector, LeadSelector, AccountSelector, SkilljarStudentSelector, EnrichmentEngineSelector, ActionSelector, GroupMemberSelector",
+                        "description": "Choose classes to ignore, divided by comma, i.e: 'AccountSelector, System, GovernorLimits'."
+                    }
+                }
+            }
+        ]
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",

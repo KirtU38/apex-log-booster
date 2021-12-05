@@ -22,6 +22,7 @@ export enum LogType {
     limitCPU,
     limitEnd,
     managedPKG,
+    any
 };
 
 type LogTypeInfo = {

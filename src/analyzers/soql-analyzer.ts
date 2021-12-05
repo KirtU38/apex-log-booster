@@ -8,33 +8,7 @@ import { Method } from './classes/helper';
 import { LogLine } from './classes/helper';
 
 const filePostfix = 'analyzedSOQL';
-const ignorableClasses = new Set([
-    'System',
-    'AqTriggerHandler',
-    'TriggerContext',
-    'Triggers',
-    'QueryFactory',
-    'SObjectDescribeHelper',
-    'ContactSelector',
-    'SObjectSelector',
-    'GovernorLimits',
-    'GeneralSelector',
-    'DMLHelper',
-    'Log',
-    'Aq',
-    'ObjectIdentifier',
-    'StringHelper',
-    'UserSelector',
-    'OpportunitySelector',
-    'PSASelector',
-    'GroupSelector',
-    'LeadSelector',
-    'AccountSelector',
-    'SkilljarStudentSelector',
-    'EnrichmentEngineSelector',
-    'ActionSelector',
-    'GroupMemberSelector'
-]);
+const ignorableClasses = new Set();
 
 export function analyzeSOQL() {
     if(!vscode.window.activeTextEditor) {
@@ -45,16 +19,24 @@ export function analyzeSOQL() {
     let newFileUri = vscode.Uri.parse(newFilePath);
     let wsEdit = new vscode.WorkspaceEdit();
     wsEdit.createFile(newFileUri, { overwrite: true, ignoreIfExists: false });
+
+    // Variables from Settings
+    let config = vscode.workspace.getConfiguration();
+    let showLineNumbers: boolean = config.get('logFormat.showLineNumbers')!;
+    let ignorableClassesString: string = config.get('logFormat.ignoredClasses')!;
+    populateIgnorableClasses(ignorableClassesString);
+    // Main variables
     let filteredLines: LogLine[] = [];
     
-    // Sections
+    // Sections to print
     let mainLogSection: LogLine[] = [];
     let soqlInfoSection: string[] = [];
     let errorsSection: string[] = [];
     let limits: Map<LogType, string> = new Map<LogType, string>();
 
+    // Main Logic
     vscode.workspace.openTextDocument(currentFileUri).then((doc) => {
-        // Первый прогон выбрать и подписать только нужные лайны
+        // First run to filter lines
         for (let i = 0; i < doc.lineCount; i++) {
             let line = doc.lineAt(i);
             let formatted = formatLine(line.text, i);
@@ -63,7 +45,7 @@ export function analyzeSOQL() {
             }
         }
         
-        // Второй прогон
+        // Second run
         const mapOfMethodNameToObject: Map<string, Method> = new Map<string, Method>();
         let lastMethod: Method = {name: 'null', numberOfQueries: 0, triggers: new Map<string, number>()};
         let lastTrigger: TextWrap = {text: ''};
@@ -79,7 +61,7 @@ export function analyzeSOQL() {
             if(handleManagedPKG(line, mainLogSection, previousLine)) {continue;}
             if(handleLimits(line, limits, correctLimitsInfoStarted)) {continue;}
         }
-        // Method SOQL info
+        // Methods SOQL info
         handleSOQLInfoSection(soqlInfoSection, mapOfMethodNameToObject);
 
         // Print all sections
@@ -88,7 +70,7 @@ export function analyzeSOQL() {
         printLimits(limits, finalFileText);
         printSQOLInfoSection(soqlInfoSection, finalFileText);
         printErrorSection(errorsSection, finalFileText);
-        printMainSection(mainLogSection, finalFileText);
+        printMainSection(mainLogSection, finalFileText, showLineNumbers);
 
         // Insert in the new document
         wsEdit.insert(newFileUri, new vscode.Position(1, 1), finalFileText.text);
@@ -97,6 +79,19 @@ export function analyzeSOQL() {
             vscode.window.showInformationMessage('Log successfully analyzed!');
         });
     });
+}
+
+function populateIgnorableClasses(ignorableClassesString: string) {
+    if(ignorableClassesString.length === 0) {
+        return;
+    }
+    for (const className of ignorableClassesString.split(',')) {
+        let trimmed = className.trim();
+        if(trimmed.length === 0) {
+            continue;
+        }
+        ignorableClasses.add(trimmed);
+    }
 }
 
 function formatLine(line: string, i: number) : LogLine | null {
@@ -148,8 +143,6 @@ function handleSOQL(line: LogLine, mainLogSection: LogLine[], previousLine: Type
         if (mapOfMethodNameToObject.get(lastMethod.name)) {
             if(previousLine.type !== LogType.managedPKG) {
                 mapOfMethodNameToObject.set(lastMethod.name, {name: lastMethod.name, numberOfQueries: lastMethod.numberOfQueries + 1, triggers: lastMethod.triggers});
-                console.log(mapOfMethodNameToObject.get(lastMethod.name));
-                
             }
             let currentSOQLCountForTrigger = mapOfMethodNameToObject.get(lastMethod.name)!.triggers.get(lastTrigger.text);
             if (!currentSOQLCountForTrigger) {
@@ -280,12 +273,16 @@ function populateLimitsInfo(line: string, limits: Map<LogType,string>) : void {
     }
 }
 
-function printMainSection(sectionArray: LogLine[], finalFileText: TextWrap) : void {
+function printMainSection(sectionArray: LogLine[], finalFileText: TextWrap, showLineNumbers: boolean) : void {
     if(sectionArray.length === 0) {
         return;
     }
     for (const e of sectionArray) {
-        finalFileText.text += e.text + ' :' + e.lineNumber + '\n';
+        let lineNumber = '';
+        if(showLineNumbers) {
+            lineNumber = ' :' + e.lineNumber;
+        }
+        finalFileText.text += e.text + lineNumber + '\n';
     }
     finalFileText.text += '\n';
 }
