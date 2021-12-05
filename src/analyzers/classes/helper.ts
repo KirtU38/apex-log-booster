@@ -56,9 +56,9 @@ export type BooleanWrap = {
 const LOG_MARKERS: Map<LogType, string> = new Map<LogType, string>([
     [LogType.triggerStarted,   'TRIGGER_STARTED'],
     [LogType.triggerFinished,  'TRIGGER_FINISHED'],
-    [LogType.validationRule,   'VALIDATION RULE'],
-    [LogType.validationPass,   'VALIDATION PASSED'],
-    [LogType.validationFail,   'VALIDATION FAILED'],
+    [LogType.validationRule,   'VALIDATION_RULE'],
+    [LogType.validationPass,   'VALIDATION_PASSED'],
+    [LogType.validationFail,   'VALIDATION_FAILED'],
     [LogType.wfCriteriaBegin,  'WORKFLOW_RULE'],
     [LogType.wfCriteriaEnd,    'WORKFLOW_PASSED'],
     [LogType.wfFieldUpdate,    'WORKFLOW_UPDATE'],

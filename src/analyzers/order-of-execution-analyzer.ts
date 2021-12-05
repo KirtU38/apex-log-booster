@@ -38,6 +38,7 @@ export function analyzeLog() : void {
 
         // Print
         let finalFileText: TextWrap = {text: ''};
+        printMarkers(finalFileText);
         printMainSection(mainLogSection, finalFileText, showLineNumbers);
 
         // Insert in the new document
@@ -80,6 +81,16 @@ function formatLine(line: string, i: number) : LogLine | null {
         return {type: logType, text: line.replace(logInfoObject.matcher, logInfoObject.replacer), lineNumber: i + 1};
     }
     return null;
+}
+
+function printMarkers(finalFileText: TextWrap) : void {
+    finalFileText.text += 'Avaliable markers:\n';
+    for (const logObject of LOG_OBJECTS.values()) {
+        if(logObject.orderAnalyzer && logObject.marker) {
+            finalFileText.text += '- ' + logObject.marker + '\n';
+        }
+    }
+    finalFileText.text += '\n';
 }
 
 function printMainSection(mainLogSection: LogLine[], finalFileText: TextWrap, showLineNumbers: boolean) : void {
