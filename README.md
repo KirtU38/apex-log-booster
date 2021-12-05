@@ -1,4 +1,4 @@
-## Minimal requirements for the log levels
+## Minimum requirements for the log levels
 - Database: Info
 - Workflow: Info
 - Validation: Info
@@ -18,16 +18,19 @@ Open any .log file, right click and select "Log: Order of Execution" or "Log: SO
     - DML
     - Errors
     - Debug
+    - SOQL (optional)
 
 - Log: SOQL Analyzer - parses .log file to more convenient format where you can quickly see aggregated SOQL usage of all Classes and Methods, as well as complete order of execution with these markers:
     - Trigger Start
     - Trigger Finish
     - Method Start
     - Method Finish
-    - SOQL Queries
+    - SOQL
     - Error
     - General Limits Info
     - Debug
+    - Managed Package
+    - DML (optional)
 
 
 
