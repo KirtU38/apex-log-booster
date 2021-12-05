@@ -2,7 +2,7 @@
 	"name": "apex-log-booster",
 	"displayName": "Apex Log Booster",
 	"description": "",
-	"version": "0.1.2",
+	"version": "0.1.3",
     "publisher": "EgorDevProjects",
     "icon": "power.png",
 	"engines": {
@@ -50,10 +50,20 @@
                         "default": false,
                         "description": "Show line number after a Log line."
                     },
-                    "logFormat.ignoredClasses": {
+                    "soqlAnalyzer.ignoredClasses": {
                         "type": "string",
                         "default": "System, AqTriggerHandler, TriggerContext, Triggers, QueryFactory, SObjectDescribeHelper, ContactSelector, SObjectSelector, GovernorLimits, GeneralSelector, DMLHelper, Log, Aq, ObjectIdentifier, StringHelper, UserSelector, OpportunitySelector, PSASelector, GroupSelector, LeadSelector, AccountSelector, SkilljarStudentSelector, EnrichmentEngineSelector, ActionSelector, GroupMemberSelector",
                         "description": "Choose classes to ignore, divided by comma, i.e: 'AccountSelector, System, GovernorLimits'."
+                    },
+                    "orderOfExecution.showSOQL": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Show SOQL queries in Order of Execution."
+                    },
+                    "soqlAnalyzer.showDML": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Show DML in SOQL Analyzer."
                     }
                 }
             }

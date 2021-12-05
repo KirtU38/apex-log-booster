@@ -3,6 +3,7 @@ import { LogType } from './classes/helper';
 import { LOG_OBJECTS } from './classes/helper';
 import { LogLine } from './classes/helper';
 import { TextWrap } from './classes/helper';
+import { LogTypeInfo } from './classes/helper';
 
 const filePostfix = 'analyzed';
 let regex: RegExp;
@@ -21,6 +22,8 @@ export function analyzeLog() : void {
     // Variables from Settings
     let config = vscode.workspace.getConfiguration();
     let showLineNumbers: boolean = config.get('logFormat.showLineNumbers')!;
+    let showSOQL: boolean = config.get('orderOfExecution.showSOQL')!;
+    handeShowSOQLSetting(showSOQL);
     // Main Variables
     let mainLogSection: LogLine[] = [];
 
@@ -106,3 +109,14 @@ function printMainSection(mainLogSection: LogLine[], finalFileText: TextWrap, sh
     }
     finalFileText.text += '\n';
 }
+function handeShowSOQLSetting(showSOQL: boolean) {
+    let soqlLTI: LogTypeInfo = LOG_OBJECTS.get(LogType.soqlExecuteBegin)!;
+    if(showSOQL) {
+        soqlLTI.orderAnalyzer = true;
+        LOG_OBJECTS.set(LogType.soqlExecuteBegin, soqlLTI);
+    } else {
+        soqlLTI.orderAnalyzer = false;
+        LOG_OBJECTS.set(LogType.soqlExecuteBegin, soqlLTI);
+    }
+}
+

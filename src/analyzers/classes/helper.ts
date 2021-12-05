@@ -25,7 +25,7 @@ export enum LogType {
     any
 };
 
-type LogTypeInfo = {
+export type LogTypeInfo = {
     hook: string,
     marker: string
     matcher: RegExp,

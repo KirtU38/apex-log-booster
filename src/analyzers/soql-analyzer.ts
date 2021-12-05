@@ -1,3 +1,4 @@
+import { off } from 'process';
 import * as vscode from 'vscode';
 import { LogType } from './classes/helper';
 import { LOG_OBJECTS } from './classes/helper';
@@ -6,9 +7,10 @@ import { TypeWrap } from './classes/helper';
 import { BooleanWrap } from './classes/helper';
 import { Method } from './classes/helper';
 import { LogLine } from './classes/helper';
+import { LogTypeInfo } from './classes/helper';
 
 const filePostfix = 'analyzedSOQL';
-const ignorableClasses = new Set();
+let ignorableClasses: Set<string>;
 
 export function analyzeSOQL() {
     if(!vscode.window.activeTextEditor) {
@@ -23,7 +25,9 @@ export function analyzeSOQL() {
     // Variables from Settings
     let config = vscode.workspace.getConfiguration();
     let showLineNumbers: boolean = config.get('logFormat.showLineNumbers')!;
-    let ignorableClassesString: string = config.get('logFormat.ignoredClasses')!;
+    let showDML: boolean = config.get('soqlAnalyzer.showDML')!;
+    handeShowDMLSetting(showDML);
+    let ignorableClassesString: string = config.get('soqlAnalyzer.ignoredClasses')!;
     populateIgnorableClasses(ignorableClassesString);
     // Main variables
     let filteredLines: LogLine[] = [];
@@ -55,6 +59,7 @@ export function analyzeSOQL() {
             if(handleMethods(line, mainLogSection, previousLine, lastMethod, mapOfMethodNameToObject)) {continue;}
             if(handleSOQL(line, mainLogSection, previousLine, lastMethod, mapOfMethodNameToObject, lastTrigger)) {continue;}
             if(handleTriggers(line, mainLogSection, previousLine, lastTrigger)) {continue;}
+            if(handleDML(line, mainLogSection, showDML)) {continue;}
             if(handleFlows(line, mainLogSection, previousLine)) {continue;}
             if(handleDebug(line, mainLogSection, previousLine)) {continue;}
             if(handleErrors(line, mainLogSection, previousLine, errorsSection)) {continue;}
@@ -81,7 +86,19 @@ export function analyzeSOQL() {
     });
 }
 
+function handeShowDMLSetting(showDML: boolean) {
+    let dmlLTI: LogTypeInfo = LOG_OBJECTS.get(LogType.dmlBegin)!;
+    if(showDML) {
+        dmlLTI.soqlAnalyzer = true;
+        LOG_OBJECTS.set(LogType.dmlBegin, dmlLTI);
+    } else {
+        dmlLTI.soqlAnalyzer = false;
+        LOG_OBJECTS.set(LogType.dmlBegin, dmlLTI);
+    }
+}
+
 function populateIgnorableClasses(ignorableClassesString: string) {
+    ignorableClasses = new Set<string>();
     if(ignorableClassesString.length === 0) {
         return;
     }
@@ -115,17 +132,21 @@ function formatLine(line: string, i: number) : LogLine | null {
 
 function handleMethods(line: LogLine, mainLogSection: LogLine[], previousLine: TypeWrap, lastMethod: Method, mapOfMethodNameToObject: Map<string, Method>): boolean {
     if (line.type === LogType.methodEntry || line.type === LogType.methodExit) {
-        if (ignorableClasses.has(line.text.replace(/\w+:\s+(\w+)\.*.*/i, '$1'))) {
+        if (ignorableClasses.size > 0 && ignorableClasses.has(line.text.replace(/\w+:\s+(\w+)\.*.*/i, '$1'))) {
             return true;
         }
-        mainLogSection.push(line);
         previousLine.type = LogType.methodEntry;
+        mainLogSection.push(line);
         if (line.type === LogType.methodEntry) {
-            if (!mapOfMethodNameToObject.get(line.text)) {
+            if (mapOfMethodNameToObject.has(line.text)) {
+                lastMethod.name = mapOfMethodNameToObject.get(line.text)!.name;
+                lastMethod.numberOfQueries = mapOfMethodNameToObject.get(line.text)!.numberOfQueries;
+                lastMethod.triggers = mapOfMethodNameToObject.get(line.text)!.triggers;
+            } else {
                 lastMethod.name = line.text;
                 lastMethod.numberOfQueries = 0;
                 lastMethod.triggers = new Map<string, number>();
-                mapOfMethodNameToObject.set(line.text, lastMethod);
+                mapOfMethodNameToObject.set(lastMethod.name, { name: lastMethod.name, numberOfQueries: lastMethod.numberOfQueries, triggers: lastMethod.triggers });
             }
         }
         return true;
@@ -140,15 +161,15 @@ function handleSOQL(line: LogLine, mainLogSection: LogLine[], previousLine: Type
             previousLine.type = LogType.soqlExecuteBegin;
             return true;
         }
-        if (mapOfMethodNameToObject.get(lastMethod.name)) {
-            if(previousLine.type !== LogType.managedPKG) {
-                mapOfMethodNameToObject.set(lastMethod.name, {name: lastMethod.name, numberOfQueries: lastMethod.numberOfQueries + 1, triggers: lastMethod.triggers});
-            }
-            let currentSOQLCountForTrigger = mapOfMethodNameToObject.get(lastMethod.name)!.triggers.get(lastTrigger.text);
-            if (!currentSOQLCountForTrigger) {
-                mapOfMethodNameToObject.get(lastMethod.name)!.triggers.set(lastTrigger.text, 1);
-            } else {
-                mapOfMethodNameToObject.get(lastMethod.name)!.triggers.set(lastTrigger.text, currentSOQLCountForTrigger + 1);
+        if (mapOfMethodNameToObject.has(lastMethod.name)) {
+            if (previousLine.type !== LogType.managedPKG) {
+                mapOfMethodNameToObject.set(lastMethod.name, { name: lastMethod.name, numberOfQueries: lastMethod.numberOfQueries + 1, triggers: lastMethod.triggers });
+                let currentSOQLCountForTrigger = mapOfMethodNameToObject.get(lastMethod.name)!.triggers.get(lastTrigger.text);
+                if (!currentSOQLCountForTrigger) {
+                    mapOfMethodNameToObject.get(lastMethod.name)!.triggers.set(lastTrigger.text, 1);
+                } else {
+                    mapOfMethodNameToObject.get(lastMethod.name)!.triggers.set(lastTrigger.text, currentSOQLCountForTrigger + 1);
+                }
             }
         }
         previousLine.type = LogType.soqlExecuteBegin;
@@ -229,7 +250,7 @@ function handleLimits(line: LogLine, limits: Map<LogType, string>, correctLimits
 }
 
 function handleSOQLInfoSection(soqlInfoSection: string[], mapOfMethodNameToObject: Map<string, Method>): void {
-    soqlInfoSection.push('Methods SOQL usage info:' + '\n');
+    soqlInfoSection.push('Methods SOQL usage info:');
         let listOfMethods: Method[] = [];
         for (const methodName of mapOfMethodNameToObject.keys()) {
             let currentMethod = mapOfMethodNameToObject.get(methodName);
@@ -326,3 +347,14 @@ function printMarkers(finalFileText: TextWrap) : void {
     }
     finalFileText.text += '\n';
 }
+function handleDML(line: LogLine, mainLogSection: LogLine[], showDML: boolean): boolean {
+    if(!showDML) {
+        return false;
+    }
+    if(line.type !== LogType.dmlBegin) {
+        return false;
+    }
+    mainLogSection.push(line);
+    return true;
+}
+
