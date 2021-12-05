@@ -1,4 +1,3 @@
-import { off } from 'process';
 import * as vscode from 'vscode';
 import { LogType } from './classes/helper';
 import { LOG_OBJECTS } from './classes/helper';
