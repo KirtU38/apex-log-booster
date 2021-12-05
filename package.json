@@ -2,7 +2,7 @@
 	"name": "apex-log-booster",
 	"displayName": "Apex Log Booster",
 	"description": "",
-	"version": "0.0.6",
+	"version": "0.1.0",
     "publisher": "EgorDevProjects",
     "icon": "power.png",
 	"engines": {
