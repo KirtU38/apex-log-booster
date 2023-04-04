@@ -5,6 +5,10 @@
 	"version": "0.1.5",
     "publisher": "EgorDevProjects",
     "icon": "power.png",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/KirtU38/apex-log-booster"
+	},
 	"engines": {
 		"vscode": "^1.62.0"
 	},
